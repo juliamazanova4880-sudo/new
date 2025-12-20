@@ -163,15 +163,14 @@ renderCatalog() {
   const loading = document.querySelector('.catalog-loading');
   if (loading) loading.style.display = 'block';
 
-  // Проверяем: каталог состоит ТОЛЬКО из 4 базовых товаров и ничего не удалено/добавлено
+  // Условие: только 4 базовых товара, ничего не удалено
   const isPureDefault = 
     this.catalog.length === 4 &&
     this.deletedProductIds.length === 0 &&
-    this.catalog.every(p => p.isDefault && 
-      DEFAULT_CATALOG.some(d => d.id === p.id && d.name === p.name));
+    this.catalog.every(p => p.isDefault);
 
   if (isPureDefault) {
-    // ЗАГРУЗКА ЧЕРЕЗ AJAX
+    // ✅ AJAX-загрузка
     fetch('partials/base-cards.html')
       .then(response => {
         if (!response.ok) throw new Error('Файл не найден');
@@ -180,33 +179,24 @@ renderCatalog() {
       .then(html => {
         container.innerHTML = html;
         if (loading) loading.style.display = 'none';
-        // 👇 КРИТИЧЕСКИ ВАЖНО: привязываем кнопки "Заказать"
-        this.initCatalogButtons();
+        this.initCatalogButtons(); // 🔥 Обязательно!
         setTimeout(() => this.alignCardsHeight(), 100);
       })
       .catch(err => {
-        console.warn('AJAX fallback:', err.message);
-        // При ошибке — рендер через JS (как раньше)
+        console.error('AJAX ошибка:', err);
+        // ❗ Fallback — рендер через JS
         this.renderCatalogJS(container, loading);
       });
   } else {
-    // Есть изменения → рендер через JS
     this.renderCatalogJS(container, loading);
   }
 }
 
-// Вспомогательный метод: рендер каталога как раньше (через JS)
+// Fallback-рендер (как раньше)
 renderCatalogJS(container, loading) {
   if (loading) loading.style.display = 'none';
-
   if (this.catalog.length === 0) {
-    container.innerHTML = `
-      <div class="empty-catalog">
-        <div class="empty-icon">🍰</div>
-        <h3>Каталог пуст</h3>
-        <p>Добавьте товары через панель администратора</p>
-      </div>
-    `;
+    container.innerHTML = `<div class="empty-catalog"><div class="empty-icon">🍰</div><h3>Каталог пуст</h3></div>`;
     return;
   }
 
@@ -214,12 +204,11 @@ renderCatalogJS(container, loading) {
   this.catalog.forEach(product => {
     html += `
       <div class="card" data-id="${product.id}" data-category="${product.category}">
-        <img src="${product.image}" alt="${product.name}" 
-             onerror="this.src='images/default-product.jpg'">
+        <img src="${product.image}" alt="${product.name}" onerror="this.src='images/default-product.jpg'">
         <div class="card-content">
           <h3>${product.name}</h3>
           <p>${product.description}</p>
-          <div class="price">${product.price}${SYSTEM_CONFIG.CURRENCY}</div>
+          <div class="price">${product.price}₽</div>
           ${product.isDefault ? '<div class="default-badge">🏷️ Базовый</div>' : ''}
           <a href="#" class="card-btn add-to-cart" data-id="${product.id}">
             ${product.available ? 'Заказать' : 'Нет в наличии'}
