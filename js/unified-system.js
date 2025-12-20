@@ -1256,91 +1256,58 @@ filterProducts(filter) {
     }
   }
 
-  // ====== Vue-реализация уведомлений (минимальная и безопасная) ======
-let toastApp = null;
-let toastComponent = null;
-
-// Инициализируем Vue-приложение ОДИН РАЗ
-function initVueToasts() {
-  if (toastApp) return; // уже инициализировано
-
-  const { createApp, ref, h, TransitionGroup } = Vue;
-
-  // Реактивный список уведомлений
-  const toasts = ref([]);
-
-  // Компонент одного уведомления
-  const ToastItem = {
-    props: ['toast'],
-    setup(props) {
-      return () => h('div', {
-        class: `toast-item toast-${props.toast.type || 'info'}`
-      }, props.toast.message);
-    }
-  };
-
-  // Основной компонент
-  toastComponent = {
-    setup() {
-      return () => h(TransitionGroup, {
-        name: "toast",
-        tag: "div",
-        class: "vue-toasts-container"
-      }, () => toasts.value.map(toast =>
-        h(ToastItem, {
-          key: toast.id,
-          toast: toast
-        })
-      ));
-    }
-  };
-
-  // Создаём приложение
-  toastApp = createApp(toastComponent);
-  toastApp.mount('#vue-toasts');
-
-  // Экспорт функции добавления
-  window.vueAddToast = (message, type = 'info') => {
-    const id = Date.now() + Math.random();
-    toasts.value.push({ id, message, type });
-    setTimeout(() => {
-      toasts.value = toasts.value.filter(t => t.id !== id);
-    }, 3000);
-  };
-}
-
-// Новая showToast — совместимая с вашим кодом
+// ====== Vue-реализация уведомлений (без синтаксических ошибок) ======
 showToast(message, type = 'info') {
-  // Инициализируем Vue при первом вызове
+  // Вспомогательная функция — определена внутри showToast
+  const initVueToasts = () => {
+    if (window.toastApp) return; // уже инициализировано
+
+    const { createApp, ref, h, TransitionGroup } = Vue;
+    const toasts = ref([]);
+
+    const ToastItem = {
+      props: ['toast'],
+      setup(props) {
+        return () => h('div', {
+          class: `toast-item toast-${props.toast.type || 'info'}`
+        }, props.toast.message);
+      }
+    };
+
+    const toastComponent = {
+      setup() {
+        return () => h(TransitionGroup, {
+          name: "toast",
+          tag: "div",
+          class: "vue-toasts-container"
+        }, () => toasts.value.map(toast =>
+          h(ToastItem, { key: toast.id, toast })
+        ));
+      }
+    };
+
+    const app = createApp(toastComponent);
+    app.mount('#vue-toasts');
+
+    window.vueAddToast = (msg, tp = 'info') => {
+      const id = Date.now() + Math.random();
+      toasts.value.push({ id, message: msg, type: tp });
+      setTimeout(() => {
+        toasts.value = toasts.value.filter(t => t.id !== id);
+      }, 3000);
+    };
+
+    window.toastApp = app; // помечаем как инициализированное
+  };
+
+  // Инициализируем при первом вызове
   if (!window.vueAddToast) {
     initVueToasts();
   }
+
   // Показываем уведомление
   window.vueAddToast(message, type);
 }
-  alignCardsHeight() {
-    const container = document.getElementById('catalog-grid');
-    if (!container) return;
-    
-    const cards = container.querySelectorAll('.card .card-content');
-    let maxHeight = 0;
-    
-    cards.forEach(card => {
-      card.style.minHeight = 'auto';
-    });
-    
-    cards.forEach(card => {
-      const height = card.offsetHeight;
-      if (height > maxHeight) {
-        maxHeight = height;
-      }
-    });
-    
-    cards.forEach(card => {
-      card.style.minHeight = maxHeight + 'px';
-    });
-  }
-
   // ========== ОБРАБОТЧИКИ СОБЫТИЙ ==========
 initCatalogButtons() {
   document.addEventListener('click', (e) => {
@@ -1963,4 +1930,3 @@ document.addEventListener('DOMContentLoaded', () => {
   
   console.log('🚀 Единая система инициализирована!');
 });
-
