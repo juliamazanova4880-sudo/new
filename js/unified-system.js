@@ -1256,34 +1256,68 @@ filterProducts(filter) {
     }
   }
 
-  showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = 'system-toast';
-    toast.textContent = message;
-    toast.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${type === 'success' ? '#4CAF50' : 
-                   type === 'error' ? '#ff6b6b' : 
-                   type === 'warning' ? '#ff9800' : '#2196F3'};
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      z-index: 10002;
-      animation: slideIn 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      max-width: 400px;
-    `;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.style.animation = 'slideOut 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, 3000);
-  }
+  // ====== Vue-реализация уведомлений (минимальная и безопасная) ======
+let toastApp = null;
+let toastComponent = null;
 
+// Инициализируем Vue-приложение ОДИН РАЗ
+function initVueToasts() {
+  if (toastApp) return; // уже инициализировано
+
+  const { createApp, ref, h, TransitionGroup } = Vue;
+
+  // Реактивный список уведомлений
+  const toasts = ref([]);
+
+  // Компонент одного уведомления
+  const ToastItem = {
+    props: ['toast'],
+    setup(props) {
+      return () => h('div', {
+        class: `toast-item toast-${props.toast.type || 'info'}`
+      }, props.toast.message);
+    }
+  };
+
+  // Основной компонент
+  toastComponent = {
+    setup() {
+      return () => h(TransitionGroup, {
+        name: "toast",
+        tag: "div",
+        class: "vue-toasts-container"
+      }, () => toasts.value.map(toast =>
+        h(ToastItem, {
+          key: toast.id,
+          toast: toast
+        })
+      ));
+    }
+  };
+
+  // Создаём приложение
+  toastApp = createApp(toastComponent);
+  toastApp.mount('#vue-toasts');
+
+  // Экспорт функции добавления
+  window.vueAddToast = (message, type = 'info') => {
+    const id = Date.now() + Math.random();
+    toasts.value.push({ id, message, type });
+    setTimeout(() => {
+      toasts.value = toasts.value.filter(t => t.id !== id);
+    }, 3000);
+  };
+}
+
+// Новая showToast — совместимая с вашим кодом
+showToast(message, type = 'info') {
+  // Инициализируем Vue при первом вызове
+  if (!window.vueAddToast) {
+    initVueToasts();
+  }
+  // Показываем уведомление
+  window.vueAddToast(message, type);
+}
   alignCardsHeight() {
     const container = document.getElementById('catalog-grid');
     if (!container) return;
@@ -1929,3 +1963,4 @@ document.addEventListener('DOMContentLoaded', () => {
   
   console.log('🚀 Единая система инициализирована!');
 });
+
